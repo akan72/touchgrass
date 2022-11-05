@@ -14,12 +14,11 @@ logging.basicConfig(level=logging.INFO)
 requests_logger.setLevel(logging.WARNING)
 
 url = "https://api.lens.dev"
+transport = AIOHTTPTransport(url=url)
+client = Client(transport=transport, fetch_schema_from_transport=True)
 
 @st.cache(ttl=60*10, max_entries=10)
 def get_profiles_owned_by(addresses: List[str]):
-    transport = AIOHTTPTransport(url=url)
-    client = Client(transport=transport, fetch_schema_from_transport=True)
-
     query = gql(Template(
         """
         query Profiles {
@@ -141,4 +140,55 @@ def profiles_to_df(profiles: List[str]) -> pd.DataFrame:
     )
 
     return profiles
+
+@st.cache(ttl=60*10, max_entries=10)
+def get_follower_set(profile_id: str) -> pd.DataFrame:
+    query = gql(Template(
+        """
+        query Followers {
+          followers(request: {
+                        profileId: "${profile_id}",
+                      limit: 50
+                     }) {
+               items {
+              wallet {
+                address
+                defaultProfile {
+                  id
+                  name
+                  bio
+                  handle
+                  ownedBy
+                  stats {
+                    totalFollowers
+                    totalFollowing
+                    totalPosts
+                    totalComments
+                    totalMirrors
+                    totalPublications
+                    totalCollects
+                  }
+                }
+              }
+            }
+            pageInfo {
+              prev
+              next
+              totalCount
+            }
+          }
+        }
+        """).substitute(profile_id=profile_id)
+    )
+
+    result = client.execute(query)
+    follower_set = pd.json_normalize(pd.DataFrame(result['followers']['items'])['wallet'], sep='_')
+    return follower_set
+
+if __name__ == "__main__":
+    alex_address = "0xBE5F037E9bDfeA1E5c3c815Eb4aDeB1D9AB0137B"
+    stani_address = "0x7241DDDec3A6aF367882eAF9651b87E1C7549Dff"
+
+    profiles = profiles_to_df([alex_address, stani_address])
+    follower_set = get_follower_set("0x01")
 
