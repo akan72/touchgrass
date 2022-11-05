@@ -1,4 +1,7 @@
-gql==2.0.0
+aiohttp
+gql
+graphene
+graphql-core
 networkx==2.8.4
 pandas==1.4.3
 requests==2.28.1

@@ -118,9 +118,27 @@ def get_profiles_owned_by(addresses: List[str]):
 
 def profiles_to_df(profiles: List[str]) -> pd.DataFrame:
     profiles = get_profiles_owned_by(profiles)
-    return pd.DataFrame(profiles['profiles']['items'])
+    profiles = pd.DataFrame(profiles["profiles"]["items"])
+    profiles = pd.concat([
+            profiles.drop('stats', axis=1),
+            profiles['stats'].apply(pd.Series),
+            pd.json_normalize(profiles['picture'], sep='_'),
+            #pd.json_normalize(profiles['coverPicture'], record_prefix='cover_', sep='_'),
+        ],
+     axis=1
+    )
+    profiles = profiles.drop(
+        [
+            'attributes',
+            'picture',
+            'coverPicture',
+            'dispatcher',
+            'followModule',
+            '__typename',
+            'original_mimeType'
+        ],
+        axis=1
+    )
 
-stani_address = "0x7241DDDec3A6aF367882eAF9651b87E1C7549Dff"
-alex_address = "0xBE5F037E9bDfeA1E5c3c815Eb4aDeB1D9AB0137B"
+    return profiles
 
-profiles = profiles_to_df([alex_address, stani_address])
