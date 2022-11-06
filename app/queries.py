@@ -142,7 +142,7 @@ def profiles_to_df(profiles: List[str]) -> pd.DataFrame:
     return profiles
 
 @st.cache(ttl=60*10, max_entries=10)
-def get_follower_set(profile_id: str) -> pd.DataFrame:
+def get_follower_set(profile_id: str):
     query = gql(Template(
         """
         query Followers {
@@ -182,6 +182,47 @@ def get_follower_set(profile_id: str) -> pd.DataFrame:
     )
 
     result = client.execute(query)
+    return result
+
+@st.cache(ttl=60*10, max_entries=10)
+def get_publications_revenue(profile_id: str):
+    query = gql(Template(
+        """
+        query Revenue {
+          profilePublicationRevenue(request: { profileId: "${profile_id}", limit: 10 }) {
+            items {
+              revenue {
+                total {
+                  asset {
+                    name
+                    symbol
+                    decimals
+                    address
+                  }
+                  value
+                }
+              }
+            }
+          }
+        }
+        """).substitute(profile_id=profile_id)
+    )
+
+    result = client.execute(query)
+    return result
+
+def get_publications_revenue_by_token(profile_id: str):
+    publications_revenue = get_publications_revenue(profile_id)
+    publications_df = pd.DataFrame(publications_revenue['profilePublicationRevenue']['items'])
+    publications_df = pd.concat([
+        #pd.json_normalize(publications_df['publication'], sep='_'),
+        pd.json_normalize(publications_df['revenue'], sep='_'),
+    ],axis=1)
+    publications_df['total_value'] = publications_df['total_value'].astype(float)
+    return pd.DataFrame(publications_df.groupby('total_asset_symbol').sum('total_value')['total_value'])
+
+def followers_to_df(address: str) -> pd.DataFrame:
+    result = get_follower_set(address)
     follower_set = pd.json_normalize(pd.DataFrame(result['followers']['items'])['wallet'], sep='_')
     return follower_set
 
@@ -190,5 +231,5 @@ if __name__ == "__main__":
     stani_address = "0x7241DDDec3A6aF367882eAF9651b87E1C7549Dff"
 
     profiles = profiles_to_df([alex_address, stani_address])
-    follower_set = get_follower_set("0x01")
-
+    followers_df = followers_to_df("0x01")
+    publications_revnue = get_publications_revenue_by_token("0x01")

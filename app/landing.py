@@ -1,7 +1,8 @@
 import streamlit as st
 from queries import (
     profiles_to_df,
-    get_follower_set,
+    followers_to_df,
+    get_publications_revenue_by_token,
 )
 
 st.title("touchgrass")
@@ -46,6 +47,8 @@ for col in [
 st.write("Follower set")
 selected_profile_id = selected_profile['id'].values[0]
 
-follower_set = get_follower_set(selected_profile_id)
+follower_set = followers_to_df(selected_profile_id)
 st.dataframe(follower_set)
 
+revenue_by_token = get_publications_revenue_by_token(selected_profile_id)
+st.dataframe(revenue_by_token)
