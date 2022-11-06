@@ -18,11 +18,11 @@ transport = AIOHTTPTransport(url=url)
 client = Client(transport=transport, fetch_schema_from_transport=True)
 
 @st.cache(ttl=60*10, max_entries=10)
-def get_profiles_owned_by(addresses: List[str]):
+def get_profiles(addresses: List[str], query_type: str):
     query = gql(Template(
         """
         query Profiles {
-          profiles(request: { ownedBy: ${addresses}, limit: 10 }) {
+          profiles(request: { ${query_type}: ${addresses}, limit: 10 }) {
             items {
               id
               name
@@ -110,13 +110,13 @@ def get_profiles_owned_by(addresses: List[str]):
             }
           }
         }
-        """).substitute(addresses=json.dumps(addresses))
+        """).substitute(addresses=json.dumps(addresses), query_type=query_type)
     )
     result = client.execute(query)
     return result
 
-def profiles_to_df(profiles: List[str]) -> pd.DataFrame:
-    profiles = get_profiles_owned_by(profiles)
+def profiles_to_df(profiles: List[str], query_type: str) -> pd.DataFrame:
+    profiles = get_profiles(profiles, query_type)
     profiles = pd.DataFrame(profiles["profiles"]["items"])
     profiles = pd.concat([
             profiles.drop('stats', axis=1),
@@ -230,6 +230,6 @@ if __name__ == "__main__":
     alex_address = "0xBE5F037E9bDfeA1E5c3c815Eb4aDeB1D9AB0137B"
     stani_address = "0x7241DDDec3A6aF367882eAF9651b87E1C7549Dff"
 
-    profiles = profiles_to_df([alex_address, stani_address])
+    profiles = profiles_to_df([alex_address, stani_address], "ownedBy")
     followers_df = followers_to_df("0x01")
     publications_revnue = get_publications_revenue_by_token("0x01")
