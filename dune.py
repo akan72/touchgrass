@@ -1,3 +1,4 @@
+import streamlit as st
 import requests
 import time
 import pandas as pd
@@ -11,15 +12,22 @@ HEADERS = {
 }
 
 # ***** Dune Utilities *****
-def execute_query(query_id: str) -> Dict:
+def execute_query(query_id: str, data: Dict=None) -> Dict:
     """
     Execute a query
 
     @param query_id: query id
+    @param data: data to pass to query {parameter: value}
     @return: response to execution {'execution_id': 'string', 'state': 'ENUM'}
     """
     url = f'https://api.dune.com/api/v1/query/{query_id}/execute'
-    response = requests.post(url, headers=HEADERS).json()
+
+    if data:
+        payload = {"query_parameters": data}
+        response = requests.post(url, json=payload, headers=HEADERS).json()
+    else:
+        response = requests.post(url, headers=HEADERS).json()
+
     return response
 
 def get_execution_status(execution_id: str) -> Dict:
@@ -51,12 +59,18 @@ def get_execution_results(execution_id: str) -> pd.DataFrame:
     url = f'https://api.dune.com/api/v1/execution/{execution_id}/results'
     response = requests.get(url, headers=HEADERS).json()
 
-    # put results in a dataframe
-    df = pd.DataFrame(response['result']['rows'])
-    df.columns = response['result']['metadata']['column_names']
+    if "result" not in response:
+        print(response)
+
+    # unpack results
+    rows = response['result']['rows']
+    cols = response['result']['metadata']['column_names']
+
+    # create DataFrame
+    df = pd.DataFrame(rows, columns=cols)
     return df
 
-def get_query_results(query_id: str, sleep: int = 2) -> pd.DataFrame:
+def get_query_results(query_id: str, data: Dict=None, sleep: int = 2) -> pd.DataFrame:
     """
     Get the results of a query
 
@@ -66,14 +80,17 @@ def get_query_results(query_id: str, sleep: int = 2) -> pd.DataFrame:
     """
 
     # submit query & get execution id
-    execution_response = execute_query(query_id)
+    execution_response = execute_query(query_id, data)
+    if "execution_id" not in execution_response:
+        print(execution_response)
+        return pd.DataFrame()
     execution_id = execution_response['execution_id']
 
     # get execution status
     execution_status = get_execution_status(execution_id)
 
     # wait for execution to complete
-    while execution_status['state'] != 'QUERY_STATE_COMPLETED':
+    while execution_status['state'] == 'QUERY_STATE_EXECUTING':
         print(execution_status)
         time.sleep(sleep)
         execution_status = get_execution_status(execution_id)
@@ -83,6 +100,7 @@ def get_query_results(query_id: str, sleep: int = 2) -> pd.DataFrame:
     return df
 
 # ***** lens-profiles *****
+@st.cache(allow_output_mutation=True)
 def get_lens_handles() -> List[str]:
     query_id = '1527541'
     df = get_query_results(query_id)
@@ -92,5 +110,26 @@ def get_lens_handles() -> List[str]:
     handles = df["vars"].apply(lambda x: x['handle']).tolist()
     return handles
 
-handles = get_lens_handles()
-print(handles)
+# ***** Wallet Labeling *****
+@st.cache(allow_output_mutation=True)
+def get_address_labels(address: str) -> pd.DataFrame:
+    """
+    Get the labels for an address
+
+    @param address: address, assuming this is an EVM address
+    @return: labels
+    """
+    query_id = 1531914
+    address = address.lower()
+
+    data = {
+        "address": address
+    }
+
+    df = get_query_results(query_id, data=data)
+    return df
+
+if __name__ == "__main__":
+    address = "0xBE5F037E9bDfeA1E5c3c815Eb4aDeB1D9AB0137B"
+    df = get_address_labels(address)
+    print(df)
