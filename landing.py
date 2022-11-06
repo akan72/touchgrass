@@ -77,20 +77,32 @@ if st.button(f"Get Dune labels for {handle}"):
 col2.markdown(f"""
 **{name}**:
 \nBio: {bio}
-  - Followers: {totalFollowers} Following: {totalFollowing}
-  - Posts: {totalPosts} Comments: {totalComments}
-  - Mirrors: {totalMirrors} Publications: {totalPublications} Collects: {totalCollects}
+  - Followers: {totalFollowers}, Following: {totalFollowing}
+  - Posts: {totalPosts}, Comments: {totalComments}
+  - Mirrors: {totalMirrors}, Publications: {totalPublications}, Collects: {totalCollects}
 """)
 
 # profile followers
-st.markdown("### Follower Set")
+st.markdown("### Follower Set (first 50)")
 selected_profile_id = selected_profile['id'].values[0]
 
 follower_set = followers_to_df(selected_profile_id)
+follower_set = follower_set.rename(
+    columns={
+        'defaultProfile_stats_totalFollowers': 'total_followers',
+        'defaultProfile_stats_totalFollowing': 'total_following',
+        'defaultProfile_stats_totalPosts': 'total_posts',
+        'defaultProfile_stats_totalComments': 'total_comments',
+        'defaultProfile_stats_totalMirrors': 'total_mirrors',
+        'defaultProfile_stats_totalPublications': 'total_publications',
+        'defaultProfile_stats_totalCollects': 'total_collects',
+    }
+)
+
 st.dataframe(follower_set)
+st.dataframe(follower_set.describe())
 
 # Follower Metrics
-
 st.markdown("### Publication Revenue")
 try:
     revenue_by_token = get_publications_revenue_by_token(selected_profile_id)

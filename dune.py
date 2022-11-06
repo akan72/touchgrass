@@ -130,6 +130,9 @@ def get_address_labels(address: str) -> pd.DataFrame:
     return df
 
 if __name__ == "__main__":
+    lens_handles = get_lens_handles()
+    print(lens_handles)
+
     address = "0xBE5F037E9bDfeA1E5c3c815Eb4aDeB1D9AB0137B"
     df = get_address_labels(address)
     print(df)
